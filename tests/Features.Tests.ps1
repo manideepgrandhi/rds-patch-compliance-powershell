@@ -37,6 +37,22 @@ Describe 'Exit codes' -Skip:$script:NoMock {
         $rp.ExitCode | Should -Be $Rc
         if (Get-BashDir) { (Invoke-PcrTool bash-report $B -Scenario $s).ExitCode | Should -Be $Rc }
     }
+    It 'summary: -FailOnNonCompliant -> exit 5 (same as Bash when available)' {
+        (Invoke-PcrTool ps-summary @('-ProfileName', 'prod', '-Region', 'us-east-1', '-FailOnNonCompliant')).ExitCode | Should -Be 5
+        if (Get-BashDir) { (Invoke-PcrTool bash-summary @('-P', 'prod', '-r', 'us-east-1', '--fail-on-noncompliant')).ExitCode | Should -Be 5 }
+    }
+    It 'summary: -SaveData writes the same data file as Bash' {
+        $dp = New-PcrTestDir 'ssp'
+        (Invoke-PcrTool ps-summary @('-ProfileName', 'prod', '-Region', 'us-east-1', '-SaveData', '-Format', 'html', '-OutputDir', $dp)).ExitCode | Should -Be 0
+        $fp = @(Get-ChildItem $dp | Where-Object Name -Match '^rds_patch_[0-9]+_[0-9]+\.json$')
+        $fp.Count | Should -Be 1
+        if (Get-BashDir) {
+            $db = New-PcrTestDir 'ssb'
+            (Invoke-PcrTool bash-summary @('-P', 'prod', '-r', 'us-east-1', '--save-data', '-F', 'html', '-o', $db)).ExitCode | Should -Be 0
+            $fb = @(Get-ChildItem $db | Where-Object Name -Match '^rds_patch_[0-9]+_[0-9]+\.json$')
+            (Get-NormalizedJson $fp[0].FullName @('.script_version')) | Should -BeExactly (Get-NormalizedJson $fb[0].FullName @('.script_version'))
+        }
+    }
     It 'config file with a credentials key is refused (exit 1)' {
         $d = New-PcrTestDir 'cred'; Set-Content "$d/c.conf" @('profiles = prod', 'aws_secret_access_key = abc')
         $r = Invoke-PcrTool ps-report @('-ConfigFile', "$d/c.conf")

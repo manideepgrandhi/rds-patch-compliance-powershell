@@ -75,7 +75,7 @@ function Resolve-PcrMergeFiles {
 function Read-PcrDataFile {
     param([string]$File)
     if (-not (Test-Path -LiteralPath $File -PathType Leaf)) { Stop-Pcr 3 "Cannot read $File" }
-    $text = [System.IO.File]::ReadAllText($File)
+    $text = [System.IO.File]::ReadAllText((Resolve-PcrPath $File))
     $head = $text.Substring(0, [Math]::Min(300, $text.Length))
     if ($head -match '(?i)<!doctype html|<html') { Stop-Pcr 3 "$File is an HTML report, not a data file. Re-run the report in that account with -SaveData and merge the rds_patch_<account>_<date>.json file" }
     try { $d = ConvertFrom-JqJson $text } catch { Stop-Pcr 3 "$File is not valid JSON (truncated or not a -SaveData file)" }

@@ -10,7 +10,8 @@ Describe 'Static analysis' {
         @($found | ForEach-Object { "$($_.ScriptName):$($_.Line) $($_.RuleName) $($_.Message)" }) | Should -BeNullOrEmpty
     }
     It 'PSScriptAnalyzer: no errors anywhere (tests included)' -Skip:(-not (Get-Module -ListAvailable PSScriptAnalyzer)) {
-        @(Invoke-ScriptAnalyzer -Path $script:Root -Recurse -Severity Error) | Should -BeNullOrEmpty
+        $files = Get-ChildItem $script:Root -Recurse -Include *.ps1, *.psm1, *.psd1 | Where-Object { $_.FullName -notmatch '[\\/](bash-ref|\.git)[\\/]' }
+        @(foreach ($f in $files) { Invoke-ScriptAnalyzer -Path $f.FullName -Severity Error }) | Should -BeNullOrEmpty
     }
     It 'no function uses two spellings of one variable ($L and $l are the same variable)' {
         $hits = foreach ($f in Get-ChildItem "$script:Root/src/*.ps1", "$script:Root/*.ps1", "$script:Root/tests/*.ps1", "$script:Root/tests/*.psm1") {

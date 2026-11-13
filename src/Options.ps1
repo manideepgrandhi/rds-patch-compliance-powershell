@@ -192,6 +192,7 @@ function Confirm-PcrOptions {
     foreach ($x in $O.AlertEmails) { if ($x -notmatch '^[^\s@;|&$`]+@[^\s@;|&$`]+$') { Stop-Pcr 1 "Invalid -AlertEmail address: $x" } }
     foreach ($x in $O.AlertWebhooks) { if ($x -notmatch '^https?://') { Stop-Pcr 1 "-AlertWebhook must be an http(s) URL: $(Get-RedactedUrl $x)" } }
     if (@('AwsTools', 'Cli') -notcontains $O.AwsBackend) { Stop-Pcr 1 '-AwsBackend must be AwsTools or Cli' }
+    if ($O.LogFile) { $O.LogFile = Resolve-PcrPath $O.LogFile }   # later writes must not depend on the current location
     if ($O.LogFile -and -not $O.DryRun) {
         try { [System.IO.File]::AppendAllText($O.LogFile, '') } catch { $lf = $O.LogFile; $O.LogFile = ''; Stop-Pcr 1 "Cannot write log file: $lf" }
     }
@@ -200,7 +201,7 @@ function Confirm-PcrOptions {
 # Test-PcrWritable: can we create a file in this directory?
 function Test-PcrWritable {
     param([string]$Dir)
-    $p = Join-Path $Dir (".pcr_w_" + [guid]::NewGuid().ToString('N'))
+    $p = Join-Path (Resolve-PcrPath $Dir) (".pcr_w_" + [guid]::NewGuid().ToString('N'))
     try { [System.IO.File]::WriteAllText($p, ''); Remove-Item -LiteralPath $p -Force; return $true } catch { return $false }
 }
 

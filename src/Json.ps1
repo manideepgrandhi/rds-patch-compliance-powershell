@@ -74,7 +74,15 @@ function ConvertFrom-JqElement {
 # Read-JqJsonFile: parse a JSON file (UTF-8, BOM tolerated)
 function Read-JqJsonFile {
     param([Parameter(Mandatory)][string]$Path)
-    return , (ConvertFrom-JqJson ([System.IO.File]::ReadAllText($Path)))
+    return , (ConvertFrom-JqJson ([System.IO.File]::ReadAllText((Resolve-PcrPath $Path))))
+}
+
+# Resolve-PcrPath: a path relative to the PowerShell location -> full file-system path. .NET file APIs
+# resolve relative paths against the PROCESS directory, which Set-Location / Push-Location do not change.
+function Resolve-PcrPath {
+    param([string]$Path)
+    if (-not $Path) { return $Path }
+    return $ExecutionContext.SessionState.Path.GetUnresolvedProviderPathFromPSPath($Path)
 }
 
 # ---------------------------------------------------------------------------------------------- print

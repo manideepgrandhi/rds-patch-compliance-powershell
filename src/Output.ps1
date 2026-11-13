@@ -13,6 +13,7 @@ function Write-PcrStdout {
 # Write-PcrFile (Bash place): atomic write (temp file + rename) into the output dir, mode 0640, logged
 function Write-PcrFile {
     param([string]$Path, [string]$Text)
+    $Path = Resolve-PcrPath $Path
     $tmp = "$Path.tmp.$PID"
     try {
         [System.IO.File]::WriteAllText($tmp, $Text, $script:Utf8)
