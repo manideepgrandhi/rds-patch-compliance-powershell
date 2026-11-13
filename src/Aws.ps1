@@ -186,6 +186,7 @@ function Invoke-PcrAwsCli {
 # ForEach-Object -Parallel runspaces. Two one-page calls (max 20 records, no paging) per region.
 $script:ProbeBlock = {
     param([string]$Backend, [string]$ProfileName, [string]$Region, [int]$Timeout, [int]$MaxAttempts)
+    # One: one probe call ('i' = instances, 'c' = clusters) -> @{ n = count or $null; e = error text }
     function One([string]$Kind) {
         try {
             if ($Backend -eq 'Cli') {

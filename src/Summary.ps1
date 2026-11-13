@@ -18,6 +18,7 @@ function Get-SGText {
     if ((Get-JqField $R 'global_role') -eq 'unknown') { return 'unknown' }
     return ''
 }
+# Get-SVb: versions_behind, 0 when unknown (jq: .versions_behind // 0)
 function Get-SVb { param($R) $v = Get-JqField $R 'versions_behind'; if (Test-JqTruthy $v) { return $v } return [long]0 }
 # Get-SNcRows (jq nc_rows): NON-COMPLIANT rows; worst global group first, primary first, most behind first
 function Get-SNcRows {
@@ -25,12 +26,12 @@ function Get-SNcRows {
     $nc = @($Rep['rows'] | Where-Object { $_['compliance_status'] -eq 'NON-COMPLIANT' })
     $gm = @{}
     foreach ($x in $nc) { $k = Get-SGKey $x; $old = if ($gm.ContainsKey($k)) { $gm[$k] } else { [long]0 }; $gm[$k] = Get-JqMax @($old, (Get-SVb $x)) }
-    return , (Sort-JqBy $nc { param($r) $k = Get-SGKey $r; , @((-$gm[$k]), $k, $(if ((Get-JqField $r 'global_role') -eq 'primary') { [long]0 } else { [long]1 }), (-(Get-SVb $r)), (ConvertTo-AsciiLower $r['identifier']), $r['account_id'], $r['region']) })
+    return , (Get-JqSortedBy $nc { param($r) $k = Get-SGKey $r; , @((-$gm[$k]), $k, $(if ((Get-JqField $r 'global_role') -eq 'primary') { [long]0 } else { [long]1 }), (-(Get-SVb $r)), (ConvertTo-AsciiLower $r['identifier']), $r['account_id'], $r['region']) })
 }
 # Get-SUnkRows (jq unk_rows)
 function Get-SUnkRows {
     param($Rep)
-    return , (Sort-JqBy @($Rep['rows'] | Where-Object { $_['compliance_status'] -eq 'UNKNOWN' }) { param($r) , @((ConvertTo-AsciiLower $r['identifier']), $r['account_id'], $r['region']) })
+    return , (Get-JqSortedBy @($Rep['rows'] | Where-Object { $_['compliance_status'] -eq 'UNKNOWN' }) { param($r) , @((ConvertTo-AsciiLower $r['identifier']), $r['account_id'], $r['region']) })
 }
 # Get-SWhy (jq why): first note part (jq: "" splits to [] -> null -> "null", kept as is)
 function Get-SWhy {
@@ -42,6 +43,7 @@ function Get-SWhy {
     if ($first -eq '') { return 'lookup failed' }
     return $first
 }
+# Get-SRule / Get-SAccts: the rule sentence and the "account (profile)" list of the summary header
 function Get-SRule { param($S) return "NON-COMPLIANT when the current version is more than $($S['max_behind']) valid minor versions behind the latest ($($S['max_behind'] + 1) or more); counted from RDS ValidUpgradeTarget (same major; Oracle: same patch line)" }
 function Get-SAccts { param($Rep) return (@($Rep['meta']['accounts'] | ForEach-Object { "$($_['account']) ($($_['profile']))" }) -join ', ') }
 # Get-SRo (jq ro): region overview, or a default for old reports
@@ -51,11 +53,14 @@ function Get-SRo {
     if (Test-JqTruthy $ro) { return $ro }
     return (New-JqObject ([ordered]@{ checked = [long]@($Rep['meta']['regions']).Count; with_databases = [long]0; empty = [long]0; error = [long]0; empty_regions = @(); mode = 'explicit' }))
 }
+# Get-SRegionLine: "N checked, N with databases, ..." plus how regions were chosen
 function Get-SRegionLine {
     param($Ro)
     $suffix = @{ discover = ' (discovery probe)'; full = ' (all scanned in full, -NoDiscover)'; explicit = ''; merge = ' (merged from saved data)' }[[string]$Ro['mode']]
     return "$($Ro['checked']) checked, $($Ro['with_databases']) with databases, $($Ro['empty']) empty, $($Ro['error']) error$(if ($Ro['error'] -eq 1) { '' } else { 's' })" + [string]$suffix
 }
+# Small jq-def ports used by the renderers: merged?, account rows, source state, merge line, shown regions,
+# percent text / CSS class, latest-minor text, text length, x // 0, and T = jq string interpolation
 function Test-SMerged { param($Rep) return ($null -ne (Get-JqField $Rep['meta'] 'merge')) }
 function Get-SAcctRows { param($Rep) $a = Get-JqField $Rep['summary'] 'accounts'; if (Test-JqTruthy $a) { return , @($a) } return , @() }
 function Get-SSrcState { param($X) $u = @($X['used']).Count; $s = @($X['superseded']).Count; if ($u -gt 0 -and $s -eq 0) { 'used' } elseif ($u -eq 0) { 'superseded (newer data used)' } else { 'partly used' } }
@@ -228,11 +233,13 @@ function ConvertTo-SummaryHtml {
 
 # CSV renderers (jq csv_nc / csv_summary / csv_regions / csv_accounts); each line ends in LF like jq -r
 function Join-SCsv { param([object[]]$Lines) return (($Lines | ForEach-Object { ConvertTo-JqCsvLine $_ }) -join "`n") + "`n" }
+# ConvertTo-SummaryCsvNc (jq csv_nc): NON-COMPLIANT servers, one row each
 function ConvertTo-SummaryCsvNc {
     param($Rep)
     $cols = 'account_id', 'profile', 'region', 'engine', 'identifier', 'resource_type', 'major_version', 'current_version', 'latest_minor_version', 'versions_behind', 'support_flag', 'auto_minor_upgrade', 'pending_actions_count', 'global_cluster', 'global_role'
     return Join-SCsv (@(, [object[]]$cols) + @(foreach ($r in (Get-SNcRows $Rep)) { , [object[]]@(foreach ($c in $cols) { Get-JqField $r $c }) }))
 }
+# ConvertTo-SummaryCsvSummary (jq csv_summary): overall, per engine, per major, and the flag counts
 function ConvertTo-SummaryCsvSummary {
     param($Rep)
     $s = $Rep['summary']
@@ -248,6 +255,7 @@ function ConvertTo-SummaryCsvSummary {
     $l += , [object[]]@('flag', 'pending_maintenance', '', $s['with_pending'], '', '', '', '', '')
     return Join-SCsv $l
 }
+# ConvertTo-SummaryCsvRegions (jq csv_regions): regions with databases or errors, then the total line
 function ConvertTo-SummaryCsvRegions {
     param($Rep)
     $l = @(, [object[]]@('account_id', 'profile', 'region', 'status', 'total', 'compliant', 'non_compliant', 'unknown', 'pct_compliant', 'servers_with_pending_maintenance', 'pending_actions', 'aws_errors'))
@@ -258,6 +266,7 @@ function ConvertTo-SummaryCsvRegions {
     }
     return Join-SCsv $l
 }
+# ConvertTo-SummaryCsvAccounts (jq csv_accounts): one line per account
 function ConvertTo-SummaryCsvAccounts {
     param($Rep)
     $l = @(, [object[]]@('account_id', 'profile', 'collected_utc', 'source_file', 'regions_with_databases', 'total', 'compliant', 'non_compliant', 'unknown', 'pct_compliant', 'servers_with_pending_maintenance', 'past_standard_support', 'aws_errors'))

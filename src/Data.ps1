@@ -113,7 +113,7 @@ function Update-OracleCount {
         elseif ($Any) { @{ v = $v; inc = ((Compare-JqValue $k $ck) -ge 0) } }
         else { @{ v = $v; inc = $false; x = "excluded $v (different patch line $(Get-LineLabel $tp.line); current is $(Get-LineLabel $cp.line))" } }
     }
-    $newer = @(Sort-JqBy @($d | Where-Object { $_.inc }) { param($x) $k = Get-OracleKey $x.v; if ($null -eq $k) { $k = @() }; , @(, $k + @($x.v)) } | ForEach-Object { $_.v })
+    $newer = @(Get-JqSortedBy @($d | Where-Object { $_.inc }) { param($x) $k = Get-OracleKey $x.v; if ($null -eq $k) { $k = @() }; , @(, $k + @($x.v)) } | ForEach-Object { $_.v })
     $r = Copy-JqObject $Row
     $r['newer_versions'] = $newer; $r['versions_behind'] = [long]$newer.Count
     $r['latest_minor_version'] = if ($newer.Count) { $newer[-1] } else { $Row['current_version'] }
@@ -131,7 +131,7 @@ function Merge-PcrData {
                 @{ account = $a['account']; profile = $a['profile']; name = $(if (Test-JqTruthy (Get-JqField $a 'name')) { $a['name'] } else { '' }); collected_epoch = $ce; i = $f.i; label = $f.label }
             }
         })
-    $groups = @(foreach ($g in (Group-JqBy $all { param($x) , @($x.account) })) { , (Sort-JqBy $g { param($x) , @($x.collected_epoch, $x.i) }) })
+    $groups = @(foreach ($g in (Group-JqBy $all { param($x) , @($x.account) })) { , (Get-JqSortedBy $g { param($x) , @($x.collected_epoch, $x.i) }) })
     $use = @{}; foreach ($g in $groups) { $use["$($g[-1].account)|$($g[-1].i)"] = $true }
     $known = Get-JqUnique @($all | ForEach-Object { $_.account })
     $used = { param($acct, $f) [bool]$use["$acct|$($f.i)"] }
@@ -163,7 +163,7 @@ function Merge-PcrData {
     $errs = Get-JqUniqueBy $errs { param($x) , @($x['account'], $x['profile'], $x['region'], $x['call'], $x['message']) }
     $regions = Get-JqUnique (@($rows | ForEach-Object { $_['region'] }) + @($rs | ForEach-Object { $_['region'] }))
     $lifecycle = $true; foreach ($f in $Inputs) { $v = Get-JqField (Get-JqField $f.d 'settings') 'lifecycle_api'; if (-not (Test-JqTruthy $(if (Test-JqTruthy $v) { $v } else { $true }))) { $lifecycle = $false } }
-    $newest = (Sort-JqBy @($Inputs) { param($f) , @($f.d['collected_epoch'], $f.i) })[-1].d
+    $newest = (Get-JqSortedBy @($Inputs) { param($f) , @($f.d['collected_epoch'], $f.i) })[-1].d
     $tz = New-JqObject ([ordered]@{ tz = $(if (Test-JqTruthy (Get-JqField $newest 'tz')) { $newest['tz'] } else { 'UTC' }); tz_abbr = $(if (Test-JqTruthy (Get-JqField $newest 'tz_abbr')) { $newest['tz_abbr'] } else { 'UTC' }); tz_offset = $(if (Test-JqTruthy (Get-JqField $newest 'tz_offset')) { $newest['tz_offset'] } else { [long]0 }) })
     $sources = @(foreach ($f in $Inputs) {
             $acc = @($f.d['accounts'] | ForEach-Object { $_['account'] })

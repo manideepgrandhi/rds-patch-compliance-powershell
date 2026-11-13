@@ -114,7 +114,7 @@ Describe 'Dry run, keep-workdir, -ReturnReport' -Skip:$script:NoMock {
         Import-Module (Join-Path (Get-PcrTestRoot) 'src/RdsPatchCompliance.psm1') -Force
         $env:MOCK_SCENARIO = 'fleet'
         try {
-            $rc = Invoke-RdsPatchCompliance -AwsBackend Cli -ProfileName prod -Region us-east-1 -ReturnReport 2>$null
+            $null = Invoke-RdsPatchCompliance -AwsBackend Cli -ProfileName prod -Region us-east-1 -ReturnReport 2>$null
             $res = & (Get-Module RdsPatchCompliance) { $script:LastResult }
             $res.ExitCode | Should -Be 0
             @($res.Report['rows']).Count | Should -BeGreaterThan 0

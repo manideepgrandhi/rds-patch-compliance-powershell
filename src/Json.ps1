@@ -278,8 +278,8 @@ public static class PcrJqOrder {
 function Get-JqTypeRank { param($V) return [PcrJqOrder]::Rank($V) }
 # Compare-JqValue: jq's total order (-1 / 0 / 1); see PcrJqOrder above
 function Compare-JqValue { param($A, $B) return [PcrJqOrder]::Compare($A, $B) }
-# Sort-JqBy: jq sort_by(f) - stable; $Key is a scriptblock that gets the item as $args[0] (or $_)
-function Sort-JqBy {
+# Get-JqSortedBy: jq sort_by(f) - stable; $Key is a scriptblock that gets the item as $args[0] (or $_)
+function Get-JqSortedBy {
     param([AllowNull()][object[]]$Items, [scriptblock]$Key)
     if ($null -eq $Items -or $Items.Count -eq 0) { return , @() }
     $n = $Items.Count
@@ -293,7 +293,7 @@ function Sort-JqBy {
 # Group-JqBy: jq group_by(f) - sorted by the key, adjacent equal keys grouped; returns an array of arrays
 function Group-JqBy {
     param([AllowNull()][object[]]$Items, [scriptblock]$Key)
-    $sorted = Sort-JqBy $Items $Key
+    $sorted = Get-JqSortedBy $Items $Key
     $groups = [System.Collections.Generic.List[object]]::new()
     $cur = $null; $curKey = $null; $first = $true
     foreach ($it in $sorted) {

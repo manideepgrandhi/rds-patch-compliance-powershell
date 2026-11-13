@@ -30,6 +30,7 @@ function Write-PcrLog {
         try { [System.IO.File]::AppendAllText($script:O.LogFile, $line + "`n") } catch { Write-Debug "log file write failed: $_" }
     }
 }
+# Write-PcrInfo / Warn / Error / Debug: log levels (Debug only with -Verbose / verbose = yes)
 function Write-PcrInfo { param([string]$Message) Write-PcrLog INFO $Message }
 function Write-PcrWarn { param([string]$Message) Write-PcrLog WARN $Message }
 function Write-PcrError { param([string]$Message) Write-PcrLog ERROR $Message }

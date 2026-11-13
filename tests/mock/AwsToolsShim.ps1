@@ -60,7 +60,7 @@ function global:Invoke-ShimAws {
 }
 
 function global:New-ShimCommon { param($B) $h = @{}; foreach ($k in 'Region', 'ProfileName') { if ($B.ContainsKey($k)) { $h[$k] = $B[$k] } }; $h }
-$global:ShimRdsEx = [Amazon.RDS.AmazonRDSException]
+
 
 function global:Get-STSCallerIdentity { [CmdletBinding()] param($Region, $ProfileName, $ClientConfig)
     $j = Invoke-ShimAws @('sts', 'get-caller-identity') (New-ShimCommon $PSBoundParameters) ([Amazon.SecurityToken.AmazonSecurityTokenServiceException])
@@ -73,21 +73,21 @@ function global:Get-EC2Region { [CmdletBinding()] param($Region, $ProfileName, $
     foreach ($x in @($j.Regions)) { ConvertTo-ShimSdk $x ([Amazon.EC2.Model.Region]) } }
 function global:Get-RDSDBCluster { [CmdletBinding()] param($Region, $ProfileName, $ClientConfig, $MaxRecord, [switch]$NoAutoIteration)
     if ($MaxRecord) {   # discovery probe: one page, count only
-        $n = Invoke-ShimAws @('rds', 'describe-db-clusters', '--max-records', "$MaxRecord", '--query', 'length(DBClusters)', '--no-paginate') (New-ShimCommon $PSBoundParameters) $ShimRdsEx
+        $n = Invoke-ShimAws @('rds', 'describe-db-clusters', '--max-records', "$MaxRecord", '--query', 'length(DBClusters)', '--no-paginate') (New-ShimCommon $PSBoundParameters) ([Amazon.RDS.AmazonRDSException])
         for ($i = 0; $i -lt [int]$n; $i++) { [Amazon.RDS.Model.DBCluster]::new() }; return }
-    $j = Invoke-ShimAws @('rds', 'describe-db-clusters') (New-ShimCommon $PSBoundParameters) $ShimRdsEx
+    $j = Invoke-ShimAws @('rds', 'describe-db-clusters') (New-ShimCommon $PSBoundParameters) ([Amazon.RDS.AmazonRDSException])
     foreach ($x in @($j.DBClusters)) { ConvertTo-ShimSdk $x ([Amazon.RDS.Model.DBCluster]) } }
 function global:Get-RDSDBInstance { [CmdletBinding()] param($Region, $ProfileName, $ClientConfig, $MaxRecord, [switch]$NoAutoIteration)
     if ($MaxRecord) {
-        $n = Invoke-ShimAws @('rds', 'describe-db-instances', '--max-records', "$MaxRecord", '--query', 'length(DBInstances)', '--no-paginate') (New-ShimCommon $PSBoundParameters) $ShimRdsEx
+        $n = Invoke-ShimAws @('rds', 'describe-db-instances', '--max-records', "$MaxRecord", '--query', 'length(DBInstances)', '--no-paginate') (New-ShimCommon $PSBoundParameters) ([Amazon.RDS.AmazonRDSException])
         for ($i = 0; $i -lt [int]$n; $i++) { [Amazon.RDS.Model.DBInstance]::new() }; return }
-    $j = Invoke-ShimAws @('rds', 'describe-db-instances') (New-ShimCommon $PSBoundParameters) $ShimRdsEx
+    $j = Invoke-ShimAws @('rds', 'describe-db-instances') (New-ShimCommon $PSBoundParameters) ([Amazon.RDS.AmazonRDSException])
     foreach ($x in @($j.DBInstances)) { ConvertTo-ShimSdk $x ([Amazon.RDS.Model.DBInstance]) } }
 function global:Get-RDSPendingMaintenanceAction { [CmdletBinding()] param($Region, $ProfileName, $ClientConfig)
-    $j = Invoke-ShimAws @('rds', 'describe-pending-maintenance-actions') (New-ShimCommon $PSBoundParameters) $ShimRdsEx
+    $j = Invoke-ShimAws @('rds', 'describe-pending-maintenance-actions') (New-ShimCommon $PSBoundParameters) ([Amazon.RDS.AmazonRDSException])
     foreach ($x in @($j.PendingMaintenanceActions)) { ConvertTo-ShimSdk $x ([Amazon.RDS.Model.ResourcePendingMaintenanceActions]) } }
 function global:Get-RDSGlobalCluster { [CmdletBinding()] param($Region, $ProfileName, $ClientConfig)
-    $j = Invoke-ShimAws @('rds', 'describe-global-clusters') (New-ShimCommon $PSBoundParameters) $ShimRdsEx
+    $j = Invoke-ShimAws @('rds', 'describe-global-clusters') (New-ShimCommon $PSBoundParameters) ([Amazon.RDS.AmazonRDSException])
     foreach ($x in @($j.GlobalClusters)) { ConvertTo-ShimSdk $x ([Amazon.RDS.Model.GlobalCluster]) } }
 function global:Invoke-ShimEngineVersions { param([string]$Svc, [hashtable]$B, [type]$Model, [type]$Ex)
     $a = @($Svc, 'describe-db-engine-versions')
@@ -96,12 +96,12 @@ function global:Invoke-ShimEngineVersions { param([string]$Svc, [hashtable]$B, [
     $j = Invoke-ShimAws $a (New-ShimCommon $B) $Ex
     foreach ($x in @($j.DBEngineVersions)) { ConvertTo-ShimSdk $x $Model } }
 function global:Get-RDSDBEngineVersion { [CmdletBinding()] param($Region, $ProfileName, $ClientConfig, $Engine, $EngineVersion)
-    Invoke-ShimEngineVersions 'rds' $PSBoundParameters ([Amazon.RDS.Model.DBEngineVersion]) $ShimRdsEx }
+    Invoke-ShimEngineVersions 'rds' $PSBoundParameters ([Amazon.RDS.Model.DBEngineVersion]) ([Amazon.RDS.AmazonRDSException]) }
 function global:Get-DOCDBEngineVersion { [CmdletBinding()] param($Region, $ProfileName, $ClientConfig, $Engine, $EngineVersion)
     Invoke-ShimEngineVersions 'docdb' $PSBoundParameters ([Amazon.DocDB.Model.DBEngineVersion]) ([Amazon.DocDB.AmazonDocDBException]) }
 function global:Get-NPTDBEngineVersion { [CmdletBinding()] param($Region, $ProfileName, $ClientConfig, $Engine, $EngineVersion)
     Invoke-ShimEngineVersions 'neptune' $PSBoundParameters ([Amazon.Neptune.Model.DBEngineVersion]) ([Amazon.Neptune.AmazonNeptuneException]) }
 function global:Get-RDSDBMajorEngineVersion { [CmdletBinding()] param($Region, $ProfileName, $ClientConfig, $Engine)
     $a = @('rds', 'describe-db-major-engine-versions'); if ($Engine) { $a += @('--engine', $Engine) }
-    $j = Invoke-ShimAws $a (New-ShimCommon $PSBoundParameters) $ShimRdsEx
+    $j = Invoke-ShimAws $a (New-ShimCommon $PSBoundParameters) ([Amazon.RDS.AmazonRDSException])
     foreach ($x in @($j.DBMajorEngineVersions)) { ConvertTo-ShimSdk $x ([Amazon.RDS.Model.DBMajorEngineVersion]) } }

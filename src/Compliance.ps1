@@ -318,13 +318,13 @@ function Get-GlobalSummary {
                             latest_minor_version = $null; versions_behind = $null; compliance_status = 'NOT SCANNED'; headless = $null; scanned = $false }))
             }
         }
-        $mem = Sort-JqBy $mem { param($m) , @($(if ($m['role'] -eq 'primary') { 0 } else { 1 }), $m['region']) }
+        $mem = Get-JqSortedBy $mem { param($m) , @($(if ($m['role'] -eq 'primary') { 0 } else { 1 }), $m['region']) }
         $sc = @($mem | Where-Object { $_['scanned'] })
         $versions = Get-JqUnique @($sc | ForEach-Object { , $_['current_version'] })
         $mismatch = $false
         foreach ($vg in (Group-JqBy $sc { param($m) , @($m['current_version']) })) { if ((Get-JqUnique @($vg | ForEach-Object { $_['compliance_status'] })).Count -gt 1) { $mismatch = $true } }
         $pending = Get-JqUnique @(foreach ($r in $g) { foreach ($p in @($r['pending_actions_detail'])) { if ($null -ne $p -and ([string]$p['on']).StartsWith('global ')) { $p['text'] } } })
-        $worst = Sort-JqBy @($sc | ForEach-Object { $_['compliance_status'] }) { param($s) Get-StatusRank $s }
+        $worst = Get-JqSortedBy @($sc | ForEach-Object { $_['compliance_status'] }) { param($s) Get-StatusRank $s }
         $an = Get-JqField $g[0] 'account_name'; if ($null -eq $an) { $an = '' }
         , (New-JqObject ([ordered]@{
                     account_id = $g[0]['account_id']; account_name = $an; global_cluster = $g[0]['global_cluster']; engine = $g[0]['engine']
@@ -333,7 +333,7 @@ function Get-GlobalSummary {
                     region_status_mismatch = $mismatch; pending = $pending
                 }))
     }
-    return , (Sort-JqBy @($out) { param($x) , @((Get-StatusRank $x['overall_status']), $x['account_id'], $x['global_cluster']) })
+    return , (Get-JqSortedBy @($out) { param($x) , @((Get-StatusRank $x['overall_status']), $x['account_id'], $x['global_cluster']) })
 }
 # Get-RegionBreakdown (jq region_breakdown): one entry per account + region checked (incl. empty / error)
 function Get-RegionBreakdown {
@@ -351,7 +351,7 @@ function Get-RegionBreakdown {
         foreach ($k in $rc.Keys) { $e[$k] = $rc[$k] }
         , $e
     }
-    return , (Sort-JqBy @($list) { param($x) , @((Get-RegionRank $x['status']), $x['account_id'], $x['region']) })
+    return , (Get-JqSortedBy @($list) { param($x) , @((Get-RegionRank $x['status']), $x['account_id'], $x['region']) })
 }
 # Get-AccountBreakdown (jq account_breakdown): one entry per account
 function Get-AccountBreakdown {
@@ -369,7 +369,7 @@ function Get-AccountBreakdown {
         foreach ($k in $rc.Keys) { $e[$k] = $rc[$k] }
         , $e
     }
-    return , (Sort-JqBy @($list) { param($x) $x['account_id'] })
+    return , (Get-JqSortedBy @($list) { param($x) $x['account_id'] })
 }
 # Complete-Report (jq mode "finalize"): names, refreshed dates, globals, filters, sort, summary
 #   $Report = {meta, rows, errors}; returns {meta, rows, errors, summary}
@@ -397,11 +397,11 @@ function Complete-Report {
     $regs = Get-RegionBreakdown $r
     $all = @($r['rows'])
     $shown = @($all | Where-Object { -not $NcOnly -or $_['compliance_status'] -eq 'NON-COMPLIANT' })
-    $shown = Sort-JqBy $shown { param($x) $vb = $x['versions_behind']; if ($null -eq $vb) { $vb = -1 }; , @($x['engine'], (Get-StatusRank $x['compliance_status']), (-1 * $vb), (ConvertTo-AsciiLower $x['identifier']), $x['account_id'], $x['region']) }
+    $shown = Get-JqSortedBy $shown { param($x) $vb = $x['versions_behind']; if ($null -eq $vb) { $vb = -1 }; , @($x['engine'], (Get-StatusRank $x['compliance_status']), (-1 * $vb), (ConvertTo-AsciiLower $x['identifier']), $x['account_id'], $x['region']) }
     $cnt = Get-StatusCounts $all
     $acts = @(foreach ($x in $all) { foreach ($p in @($x['pending_actions_detail'])) { if ($null -ne $p) { $p['action'] } } })
     $pba = New-JqObject
-    $pbaList = Sort-JqBy @(foreach ($g in (Group-JqBy $acts { param($a) , @($a) })) { @{ key = $g[0]; value = [long]$g.Count } }) { param($e) , @((-1 * $e.value), $e.key) }
+    $pbaList = Get-JqSortedBy @(foreach ($g in (Group-JqBy $acts { param($a) , @($a) })) { @{ key = $g[0]; value = [long]$g.Count } }) { param($e) , @((-1 * $e.value), $e.key) }
     foreach ($e in $pbaList) { $pba[[string]$e.key] = $e.value }
     $engines = foreach ($g in (Group-JqBy $all { param($x) , @($x['engine']) })) {
         $c = Get-StatusCounts $g
@@ -418,7 +418,7 @@ function Complete-Report {
             $mo['support_flag'] = $m[0]['support_flag']
             , $mo
         }
-        $sortedM = Sort-JqBy @($majors) { param($x) , (Get-VersionKey $x['major']) }
+        $sortedM = Get-JqSortedBy @($majors) { param($x) , (Get-VersionKey $x['major']) }
         [array]::Reverse($sortedM)
         $e['majors'] = $sortedM
         , $e

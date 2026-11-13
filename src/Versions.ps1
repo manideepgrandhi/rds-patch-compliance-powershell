@@ -134,7 +134,7 @@ function Select-MinorTarget {
         $c = Compare-JqValue $d.k $d.ck
         if ($c -gt 0 -or ($c -eq 0 -and $d.xl -eq $true)) { $sel.Add(@{ k = $d.k; t = $t }) }
     }
-    $sorted = Sort-JqBy $sel.ToArray() { param($x) , @($x.k, $x.t['EngineVersion']) }
+    $sorted = Get-JqSortedBy $sel.ToArray() { param($x) , @($x.k, $x.t['EngineVersion']) }
     $targetsOut = @(foreach ($x in $sorted) { , $x.t })
     return @{
         targets  = $targetsOut
@@ -162,13 +162,13 @@ function Get-LatestVersion {
     if ($vs.Count -eq 0) { return $null }
     if ($Engine -cmatch '^oracle') {
         $groups = Group-JqBy $vs { param($x) $p = Get-OracleVersionInfo $x; , @($(if ($null -eq $p) { '?' } else { $p.line })) }
-        $tops = @(foreach ($g in $groups) { $s = Sort-JqBy $g { param($x) , (Get-VersionOrderKey $x $Engine) }; $s[-1] })
+        $tops = @(foreach ($g in $groups) { $s = Get-JqSortedBy $g { param($x) , (Get-VersionOrderKey $x $Engine) }; $s[-1] })
         if ($tops.Count -eq 1) { return $tops[0] }
         return (@(foreach ($t in $tops) {
                     $p = Get-OracleVersionInfo $t
                     $(if ($null -eq $p) { 'unrecognised format' } else { Get-LineLabel $p.line }) + ': ' + $t
                 }) -join '; ')
     }
-    $s = Sort-JqBy $vs { param($x) , (Get-VersionKey $x) }
+    $s = Get-JqSortedBy $vs { param($x) , (Get-VersionKey $x) }
     return $s[-1]
 }
