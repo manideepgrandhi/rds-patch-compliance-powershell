@@ -107,7 +107,8 @@ function Get-PcrVersionData {
             else {
                 if ($r.err -like '*nvalid choice*') {
                     $script:Run.LcUnsupported = $true
-                    Write-PcrWarn "This AWS CLI / AWS.Tools.RDS has no 'rds describe-db-major-engine-versions' (upgrade it); support end dates show 'unknown'"
+                    $what = if ($script:O.AwsBackend -eq 'Cli') { 'AWS CLI' } else { 'AWS.Tools.RDS' }   # Cli: the Bash wording
+                    Write-PcrWarn "This $what has no 'rds describe-db-major-engine-versions' (upgrade it); support end dates show 'unknown'"
                 }
                 else { Write-PcrWarn "[$pl/$Region] lifecycle lookup for $engine failed ($($r.err)); support end dates show 'unknown'" }
                 $script:Run.LcCache[$lk] = $null

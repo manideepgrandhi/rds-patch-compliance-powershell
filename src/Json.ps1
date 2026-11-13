@@ -78,39 +78,102 @@ function Read-JqJsonFile {
 }
 
 # ---------------------------------------------------------------------------------------------- print
-# Format-JqNumber: jq 1.7 number text (integral -> digits; else shortest round-trip; exponent as 1E+17)
-function Format-JqNumber {
-    param($N)
-    if ($N -is [long] -or $N -is [int] -or $N -is [int16] -or $N -is [byte] -or $N -is [uint32] -or $N -is [uint64]) { return ([long]$N).ToString($script:Inv) }
-    $d = [double]$N
-    if ([double]::IsNaN($d)) { return 'null' }
-    if ([double]::IsInfinity($d)) { if ($d -gt 0) { return '1.7976931348623157e+308' } else { return '-1.7976931348623157e+308' } }
-    if ([Math]::Floor($d) -eq $d -and [Math]::Abs($d) -lt 1e17) { return ([long]$d).ToString($script:Inv) }
-    $s = $d.ToString('R', $script:Inv)
-    if ($s -match '^(-?)(\d)(?:\.(\d+))?E([+-])(\d+)$') {   # 1E+20 style like jq; small exponents print as decimals in jq
-        $exp = [int]$Matches[5]; if ($Matches[4] -eq '-' -and $exp -le 5) { return $d.ToString('0.###################', $script:Inv) }
-        return "$($Matches[1])$($Matches[2])$(if ($Matches[3]) { '.' + $Matches[3] })E$($Matches[4])$('{0:00}' -f $exp)"
+# PcrJqJson (C#, compiled once per session): jq's JSON printer. Same rules as jq 1.7:
+#   numbers: integral -> digits; otherwise shortest round-trip, exponent as 1E+20; NaN -> null
+#   strings: escape " \ and control characters (\n \t \r \b \f, others \u00XX, DEL too); non-ASCII stays raw
+#   pretty print = 2-space indent, "key": value; compact = no spaces (jq -c / tojson)
+# (The first version was a recursive PowerShell function; it took ~5 ms per server row.)
+if (-not ('PcrJqJson' -as [type])) {
+    Add-Type -TypeDefinition @'
+using System;
+using System.Collections;
+using System.Globalization;
+using System.Text;
+using System.Text.RegularExpressions;
+public static class PcrJqJson {
+    static readonly CultureInfo Inv = CultureInfo.InvariantCulture;
+    static readonly Regex Exp = new Regex(@"^(-?)(\d)(?:\.(\d+))?E([+-])(\d+)$");
+    static object Unwrap(object v) { var p = v as System.Management.Automation.PSObject; return p != null ? p.BaseObject : v; }
+    public static bool IsNumber(object v) { v = Unwrap(v); return v is long || v is int || v is double || v is decimal || v is float; }
+    public static string Number(object n) {
+        n = Unwrap(n);
+        if (n is long || n is int || n is short || n is byte || n is uint || n is ulong) return Convert.ToInt64(n).ToString(Inv);
+        double d = Convert.ToDouble(n, Inv);
+        if (double.IsNaN(d)) return "null";
+        if (double.IsInfinity(d)) return d > 0 ? "1.7976931348623157e+308" : "-1.7976931348623157e+308";
+        if (Math.Floor(d) == d && Math.Abs(d) < 1e17) return ((long)d).ToString(Inv);
+        string s = d.ToString("R", Inv);
+        var m = Exp.Match(s);
+        if (m.Success) {
+            int e = int.Parse(m.Groups[5].Value, Inv);
+            if (m.Groups[4].Value == "-" && e <= 5) return d.ToString("0.###################", Inv);
+            return m.Groups[1].Value + m.Groups[2].Value + (m.Groups[3].Success ? "." + m.Groups[3].Value : "") + "E" + m.Groups[4].Value + e.ToString("00", Inv);
+        }
+        return s;
     }
-    return $s
-}
-# ConvertTo-JqString: a JSON string literal escaped like jq (", \, control chars, DEL; non-ASCII stays raw)
-function ConvertTo-JqString {
-    param([AllowNull()][AllowEmptyString()][string]$S)
-    $sb = [System.Text.StringBuilder]::new($S.Length + 2)
-    [void]$sb.Append('"')
-    foreach ($c in $S.ToCharArray()) {
-        switch ([int]$c) {
-            34 { [void]$sb.Append('\"') } 92 { [void]$sb.Append('\\') }
-            10 { [void]$sb.Append('\n') } 9 { [void]$sb.Append('\t') } 13 { [void]$sb.Append('\r') }
-            8 { [void]$sb.Append('\b') } 12 { [void]$sb.Append('\f') }
-            default {
-                if ([int]$c -lt 32 -or [int]$c -eq 127) { [void]$sb.AppendFormat('\u{0:x4}', [int]$c) } else { [void]$sb.Append($c) }
+    public static void Str(StringBuilder sb, string s) {
+        sb.Append('"');
+        foreach (char c in s) {
+            switch (c) {
+                case '"': sb.Append("\\\""); break;
+                case '\\': sb.Append("\\\\"); break;
+                case '\n': sb.Append("\\n"); break;
+                case '\t': sb.Append("\\t"); break;
+                case '\r': sb.Append("\\r"); break;
+                case '\b': sb.Append("\\b"); break;
+                case '\f': sb.Append("\\f"); break;
+                default:
+                    if (c < 32 || c == 127) sb.AppendFormat(Inv, "\\u{0:x4}", (int)c); else sb.Append(c);
+                    break;
             }
         }
+        sb.Append('"');
     }
-    [void]$sb.Append('"')
-    return $sb.ToString()
+    public static string Str(string s) { var sb = new StringBuilder(s.Length + 2); Str(sb, s ?? ""); return sb.ToString(); }
+    public static string Write(object v, bool compact) { var sb = new StringBuilder(); Value(sb, v, 0, compact); return sb.ToString(); }
+    static void Indent(StringBuilder sb, int level) { sb.Append('\n').Append(' ', 2 * level); }
+    static void Value(StringBuilder sb, object v, int level, bool compact) {
+        v = Unwrap(v);
+        if (v == null) { sb.Append("null"); return; }
+        if (v is bool) { sb.Append((bool)v ? "true" : "false"); return; }
+        if (v is string) { Str(sb, (string)v); return; }
+        if (IsNumber(v)) { sb.Append(Number(v)); return; }
+        var dict = v as IDictionary;
+        if (dict != null) {
+            if (dict.Count == 0) { sb.Append("{}"); return; }
+            sb.Append('{'); bool first = true;
+            foreach (DictionaryEntry kv in dict) {
+                if (!first) sb.Append(','); first = false;
+                if (!compact) Indent(sb, level + 1);
+                Str(sb, Convert.ToString(kv.Key, Inv)); sb.Append(compact ? ":" : ": ");
+                Value(sb, kv.Value, level + 1, compact);
+            }
+            if (!compact) Indent(sb, level);
+            sb.Append('}'); return;
+        }
+        if (v is DateTime) { Str(sb, ((DateTime)v).ToUniversalTime().ToString("yyyy-MM-dd'T'HH:mm:ss'+00:00'", Inv)); return; }
+        var en = v as IEnumerable;
+        if (en != null) {
+            bool first = true; bool any = false;
+            foreach (var x in en) {
+                if (!any) { sb.Append('['); any = true; }
+                if (!first) sb.Append(','); first = false;
+                if (!compact) Indent(sb, level + 1);
+                Value(sb, x, level + 1, compact);
+            }
+            if (!any) { sb.Append("[]"); return; }
+            if (!compact) Indent(sb, level);
+            sb.Append(']'); return;
+        }
+        Str(sb, Convert.ToString(v, Inv));
+    }
 }
+'@
+}
+# Format-JqNumber: jq 1.7 number text (see PcrJqJson)
+function Format-JqNumber { param($N) return [PcrJqJson]::Number($N) }
+# ConvertTo-JqString: a JSON string literal escaped like jq (see PcrJqJson)
+function ConvertTo-JqString { param([AllowNull()][AllowEmptyString()][string]$S) return [PcrJqJson]::Str($S) }
 # Test-JqNumber / Test-JqArray / Test-JqObject: jq type checks on PowerShell values
 function Test-JqNumber { param($V) return ($V -is [long] -or $V -is [int] -or $V -is [double] -or $V -is [decimal] -or $V -is [single]) }
 function Test-JqObject { param($V) return ($V -is [System.Collections.IDictionary]) }
@@ -119,43 +182,7 @@ function Test-JqArray { param($V) return ($null -ne $V -and $V -isnot [string] -
 # ConvertTo-JqJson: value -> JSON text. -Compact = jq -c / tojson; default = jq's 2-space pretty print
 function ConvertTo-JqJson {
     param([AllowNull()]$Value, [switch]$Compact)
-    $sb = [System.Text.StringBuilder]::new()
-    Write-JqJsonValue $sb $Value 0 $Compact.IsPresent
-    return $sb.ToString()
-}
-# Write-JqJsonValue: recursive writer behind ConvertTo-JqJson
-function Write-JqJsonValue {
-    param([System.Text.StringBuilder]$Sb, $V, [int]$Level, [bool]$Compact)
-    if ($null -eq $V) { [void]$Sb.Append('null'); return }
-    if ($V -is [bool]) { [void]$Sb.Append($(if ($V) { 'true' } else { 'false' })); return }
-    if ($V -is [string]) { [void]$Sb.Append((ConvertTo-JqString $V)); return }
-    if (Test-JqNumber $V) { [void]$Sb.Append((Format-JqNumber $V)); return }
-    if ($V -is [System.Collections.IDictionary]) {
-        if ($V.Count -eq 0) { [void]$Sb.Append('{}'); return }
-        [void]$Sb.Append('{'); $first = $true
-        foreach ($k in $V.Keys) {
-            if (-not $first) { [void]$Sb.Append(',') }; $first = $false
-            if (-not $Compact) { [void]$Sb.Append("`n").Append(' ' * (2 * ($Level + 1))) }
-            [void]$Sb.Append((ConvertTo-JqString ([string]$k))).Append($(if ($Compact) { ':' } else { ': ' }))
-            Write-JqJsonValue $Sb $V[$k] ($Level + 1) $Compact
-        }
-        if (-not $Compact) { [void]$Sb.Append("`n").Append(' ' * (2 * $Level)) }
-        [void]$Sb.Append('}'); return
-    }
-    if ($V -is [System.Collections.IEnumerable]) {
-        $items = @($V)
-        if ($items.Count -eq 0) { [void]$Sb.Append('[]'); return }
-        [void]$Sb.Append('['); $first = $true
-        foreach ($x in $items) {
-            if (-not $first) { [void]$Sb.Append(',') }; $first = $false
-            if (-not $Compact) { [void]$Sb.Append("`n").Append(' ' * (2 * ($Level + 1))) }
-            Write-JqJsonValue $Sb $x ($Level + 1) $Compact
-        }
-        if (-not $Compact) { [void]$Sb.Append("`n").Append(' ' * (2 * $Level)) }
-        [void]$Sb.Append(']'); return
-    }
-    if ($V -is [datetime]) { [void]$Sb.Append((ConvertTo-JqString ($V.ToUniversalTime().ToString("yyyy-MM-dd'T'HH:mm:ss'+00:00'", $script:Inv)))); return }
-    [void]$Sb.Append((ConvertTo-JqString ([string]$V)))
+    return [PcrJqJson]::Write($Value, $Compact.IsPresent)
 }
 # ConvertTo-JqText: jq string interpolation "\(x)" (strings raw, null -> "null", numbers jq style, rest compact JSON)
 function ConvertTo-JqText {
@@ -187,40 +214,70 @@ function ConvertTo-JqCsvLine {
 function Get-JqDash { param([AllowNull()]$V) if ($null -eq $V -or ($V -is [string] -and $V -eq '')) { return '-' } return (ConvertTo-JqText $V) }
 
 # ---------------------------------------------------------------------------------------------- ordering
-# Get-JqTypeRank: jq's type order used when comparing values of different types
-function Get-JqTypeRank {
-    param($V)
-    if ($null -eq $V) { return 0 }
-    if ($V -is [bool]) { if ($V) { return 2 } else { return 1 } }
-    if (Test-JqNumber $V) { return 3 }
-    if ($V -is [string]) { return 4 }
-    if ($V -is [System.Collections.IDictionary]) { return 6 }
-    return 5
-}
-# Compare-JqValue: jq's total order (-1 / 0 / 1). Strings compare by code point, arrays element-wise
-# (a shorter prefix sorts first), objects by sorted key list and then by values.
-function Compare-JqValue {
-    param($A, $B)
-    $ra = Get-JqTypeRank $A; $rb = Get-JqTypeRank $B
-    if ($ra -ne $rb) { return [Math]::Sign($ra - $rb) }
-    switch ($ra) {
-        3 { $x = [double]$A; $y = [double]$B; if ($x -lt $y) { return -1 } elseif ($x -gt $y) { return 1 } else { return 0 } }
-        4 { return [Math]::Sign([string]::CompareOrdinal([string]$A, [string]$B)) }
-        5 {
-            $xa = @($A); $xb = @($B); $n = [Math]::Min($xa.Count, $xb.Count)
-            for ($i = 0; $i -lt $n; $i++) { $c = Compare-JqValue $xa[$i] $xb[$i]; if ($c -ne 0) { return $c } }
-            return [Math]::Sign($xa.Count - $xb.Count)
+# PcrJqOrder (C#, compiled once per session): jq's total order. Sorting thousands of rows with a
+# PowerShell comparison scriptblock took ~25 ms per server, so the comparer itself is compiled.
+#   null < false < true < numbers < strings (code-point order) < arrays (element-wise, shorter prefix first)
+#   < objects (sorted key list first, then the values key by key)
+if (-not ('PcrJqOrder' -as [type])) {
+    Add-Type -TypeDefinition @'
+using System;
+using System.Collections;
+using System.Collections.Generic;
+public static class PcrJqOrder {
+    static object Unwrap(object v) { var p = v as System.Management.Automation.PSObject; return p != null ? p.BaseObject : v; }
+    static bool IsNumber(object v) { return v is long || v is int || v is double || v is decimal || v is float; }
+    public static int Rank(object v) {
+        v = Unwrap(v);
+        if (v == null) return 0;
+        if (v is bool) return ((bool)v) ? 2 : 1;
+        if (IsNumber(v)) return 3;
+        if (v is string) return 4;
+        if (v is IDictionary) return 6;
+        return 5;
+    }
+    static List<object> AsList(object v) {
+        var l = new List<object>();
+        var e = v as IEnumerable;
+        if (e != null) { foreach (var x in e) l.Add(x); } else { l.Add(v); }
+        return l;
+    }
+    public static int Compare(object a, object b) {
+        a = Unwrap(a); b = Unwrap(b);
+        int ra = Rank(a), rb = Rank(b);
+        if (ra != rb) return Math.Sign(ra - rb);
+        switch (ra) {
+            case 3: { double x = Convert.ToDouble(a), y = Convert.ToDouble(b); return x < y ? -1 : (x > y ? 1 : 0); }
+            case 4: return Math.Sign(string.CompareOrdinal((string)a, (string)b));
+            case 5: {
+                var xa = AsList(a); var xb = AsList(b); int n = Math.Min(xa.Count, xb.Count);
+                for (int i = 0; i < n; i++) { int c = Compare(xa[i], xb[i]); if (c != 0) return c; }
+                return Math.Sign(xa.Count - xb.Count);
+            }
+            case 6: {
+                var da = (IDictionary)a; var db = (IDictionary)b;
+                var ka = new List<string>(); foreach (var k in da.Keys) ka.Add(Convert.ToString(k)); ka.Sort(StringComparer.Ordinal);
+                var kb = new List<string>(); foreach (var k in db.Keys) kb.Add(Convert.ToString(k)); kb.Sort(StringComparer.Ordinal);
+                int c = Compare(ka, kb); if (c != 0) return c;
+                foreach (var k in ka) { c = Compare(da[k], db[k]); if (c != 0) return c; }
+                return 0;
+            }
+            default: return 0;
         }
-        6 {
-            $ka = [string[]]@($A.Keys); [Array]::Sort($ka, [System.StringComparer]::Ordinal)
-            $kb = [string[]]@($B.Keys); [Array]::Sort($kb, [System.StringComparer]::Ordinal)
-            $c = Compare-JqValue $ka $kb; if ($c -ne 0) { return $c }
-            foreach ($k in $ka) { $c = Compare-JqValue $A[$k] $B[$k]; if ($c -ne 0) { return $c } }
-            return 0
-        }
-        default { return 0 }
+    }
+    // Stable sort: returns the item indexes ordered by key (ties keep input order, like jq sort_by)
+    public static int[] SortIndex(object[] keys) {
+        var idx = new int[keys.Length];
+        for (int i = 0; i < idx.Length; i++) idx[i] = i;
+        Array.Sort(idx, (x, y) => { int c = Compare(keys[x], keys[y]); return c != 0 ? c : x.CompareTo(y); });
+        return idx;
     }
 }
+'@
+}
+# Get-JqTypeRank: jq's type order used when comparing values of different types
+function Get-JqTypeRank { param($V) return [PcrJqOrder]::Rank($V) }
+# Compare-JqValue: jq's total order (-1 / 0 / 1); see PcrJqOrder above
+function Compare-JqValue { param($A, $B) return [PcrJqOrder]::Compare($A, $B) }
 # Sort-JqBy: jq sort_by(f) - stable; $Key is a scriptblock that gets the item as $args[0] (or $_)
 function Sort-JqBy {
     param([AllowNull()][object[]]$Items, [scriptblock]$Key)
@@ -228,9 +285,7 @@ function Sort-JqBy {
     $n = $Items.Count
     $keys = [object[]]::new($n)
     for ($i = 0; $i -lt $n; $i++) { $it = $Items[$i]; $keys[$i] = & $Key $it }
-    $idx = [int[]](0..($n - 1))
-    $cmp = [System.Comparison[int]] { param($a, $b) $c = Compare-JqValue $keys[$a] $keys[$b]; if ($c -ne 0) { return $c }; return $a.CompareTo($b) }
-    [Array]::Sort($idx, $cmp)
+    $idx = [PcrJqOrder]::SortIndex($keys)
     $out = [object[]]::new($n)
     for ($i = 0; $i -lt $n; $i++) { $out[$i] = $Items[$idx[$i]] }
     return , $out

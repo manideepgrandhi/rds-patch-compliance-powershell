@@ -134,6 +134,7 @@ function New-ComplianceRows {
     }
 
     $rows = [System.Collections.Generic.List[object]]::new()
+    $selCache = @{}
     foreach ($r in $res) {
         if (-not (Test-GlobMatch $r.engine $Filters.engines)) { continue }
         $idOk = $false; foreach ($n in (@($r.id) + @($r.members | ForEach-Object { $_.id }))) { if (Test-GlobMatch $n $Filters.identifiers) { $idOk = $true; break } }
@@ -146,7 +147,10 @@ function New-ComplianceRows {
         $eMajor = Get-JqField $e 'major'
         $major = if (Test-JqTruthy $eMajor) { $eMajor } else { Get-DerivedMajor $r.version $r.engine }
         $eTargets = @(Get-JqField $e 'targets' | Where-Object { $null -ne $_ })
-        $sel = Select-MinorTarget $eTargets $r.engine $r.version $(if (Test-JqTruthy $eMajor) { $eMajor } else { $null }) $OracleAny
+        # same engine + version in one region = same lookup result, so the target selection is computed once
+        $selKey = $r.engine + '|' + $r.version
+        $sel = $selCache[$selKey]
+        if ($null -eq $sel) { $sel = Select-MinorTarget $eTargets $r.engine $r.version $(if (Test-JqTruthy $eMajor) { $eMajor } else { $null }) $OracleAny; $selCache[$selKey] = $sel }
         $tg = @($sel.targets)
         $newer = @($sel.versions)
         $autoTargets = @(foreach ($t in $tg) { if ((Get-JqField $t 'AutoUpgrade') -eq $true) { $t['EngineVersion'] } })
