@@ -102,7 +102,7 @@ Describe 'Real AWS SDK against a paging fake endpoint' -Skip:$script:Skip {
         try {
             $old = $env:PATH; $env:PATH = $path
             try { $b = & bash (Join-Path (Get-BashDir) 'rds_patch_compliance_report.sh') -A --probe-parallel 3 -F json 2>"$($script:F.Dir)/berr.txt"; $brc = $LASTEXITCODE } finally { $env:PATH = $old }
-            if ($brc -ne 0) { Write-Host (Get-Content -Raw "$($script:F.Dir)/berr.txt") }
+            if ($brc -ne 0) { Write-Warning (Get-Content -Raw "$($script:F.Dir)/berr.txt") }
             $pc = Invoke-Pcr $script:F @('-AllRegions', '-ProbeParallel', '3', '-Format', 'json') -Backend Cli -Path $path
             $pt = Invoke-Pcr $script:F @('-AllRegions', '-ProbeParallel', '3', '-Format', 'json')
         }

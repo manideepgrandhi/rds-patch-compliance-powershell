@@ -13,3 +13,5 @@ testResults.xml
 # Local config (may hold account names)
 *.conf
 !*.conf.example
+# Partial writes from atomic save
+*.tmp.*
