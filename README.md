@@ -23,11 +23,9 @@ HTML page.
 
 ![HTML report: summary cards, engine compliance table, per-account and per-region tables](docs/sample_report_html.png)
 
-Release history: [CHANGELOG.md](CHANGELOG.md). More examples: [EXAMPLES.md](EXAMPLES.md).
+Release history: [What's new](https://manideepgrandhi.github.io/rds-patch-compliance-powershell/) · also in [CHANGELOG.md](CHANGELOG.md). More examples: [EXAMPLES.md](EXAMPLES.md).
 How it differs from the Bash code: [COMPARISON.md](COMPARISON.md). Option-by-option mapping:
 [FEATURE-PARITY.md](FEATURE-PARITY.md). Latest test run: [docs/TEST-RESULTS.md](docs/TEST-RESULTS.md).
-
-> **Status:** v1.0.0, on the `feature/powershell-port` branch (draft PR). It is not released yet.
 
 ## Contents
 

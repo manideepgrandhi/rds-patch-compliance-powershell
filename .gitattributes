@@ -5,6 +5,7 @@ tools/ export-ignore
 .github/ export-ignore
 .gitattributes export-ignore
 CHANGELOG.md export-ignore
+whats-new/ export-ignore
 # keep the HTML assets and sample outputs byte-exact (they are compared with the Bash tool's)
 *.css -text
 *.js -text

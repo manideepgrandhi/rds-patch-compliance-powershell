@@ -2,11 +2,11 @@
 
 Plain-English features for each release of the PowerShell port. The format follows the Bash tool's
 [CHANGELOG.md](https://github.com/manideepgrandhi/rds-patch-compliance/blob/main/CHANGELOG.md).
+The What's new page is built from this file.
 
 ## 1.0.0
 
-_Not released yet. This version is on the `feature/powershell-port` branch in draft PR #1, and no tag or
-release has been made._
+_Released 2026-11-13._
 
 First version: a PowerShell 7 port of `rds_patch_compliance_report.sh` v1.5.1 and
 `rds_patch_compliance_summary.sh` 1.3.0 (Bash repo `main` 5311723).
