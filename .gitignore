@@ -20,3 +20,4 @@ testResults.xml
 
 # Built What's new site (GitHub Pages artifact)
 whats-new/dist/
+__pycache__/
