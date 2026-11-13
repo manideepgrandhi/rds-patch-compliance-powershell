@@ -28,7 +28,7 @@ same mock data with a frozen clock and require the same files byte for byte (see
 | Where the data lives during a run | Files in a work folder (`$WORK/p1/us-east-1/rows.json` ...), combined by `find \| sort` + `jq -s` | Ordered dictionaries in memory, returned from functions |
 | Parallel probes | `probe_region ... &` + `wait -n`, results through files | `ForEach-Object -Parallel -ThrottleLimit N`, results returned as objects |
 | Errors | `die <code> msg` → `exit` | `Stop-Pcr <code> msg` throws; one `catch` in the entry function turns it into the exit code |
-| Tests | `run_tests.sh` (500+ checks), `validate_cli.sh`, browser checks (node + puppeteer) | Pester 5: 113 tests; 73 of them run the Bash tool too and compare the results |
+| Tests | `run_tests.sh` (500+ checks), `validate_cli.sh`, browser checks (node + puppeteer) | Pester 5: 115 tests; 73 of them run the Bash tool too and compare the results |
 
 ## Section by section
 
