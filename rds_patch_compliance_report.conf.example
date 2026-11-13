@@ -1,0 +1,47 @@
+# rds_patch_compliance_report.conf.example - settings for Invoke-RdsPatchCompliance.ps1 (-ConfigFile FILE)
+# Same file format as the Bash tool's --config file: one file works with both tools, as long as the two
+# PowerShell-only keys below (alert_smtp_server, aws_backend) stay commented out (Bash rejects unknown keys).
+# key = value; parsed line by line, never run. Parameters on the command line override these.
+# Lists are comma-separated. Quotes are optional. Unknown keys are an error.
+# Credentials are NOT accepted here; use AWS profiles / SSO / an instance role / CloudShell's own login.
+
+# --- scope
+profiles = prod,nonprod
+regions = us-east-1,ap-south-1
+# all_regions = yes
+# discover = yes             # with all_regions: probe each region first, full scan only where databases are (no = scan all)
+# probe_parallel = 8         # regions probed at the same time (1-32)
+# engines = aurora-*,postgres,sqlserver-*
+# identifiers = prod-*
+
+# --- rule
+max_behind = 2              # COMPLIANT when <= 2 minor versions behind
+warn_days = 180             # flag majors whose standard support ends within 180 days
+# non_compliant_only = no
+# Oracle: also count upgrade targets on other patch lines (spb when on mrp ...). Default no = same line only.
+# oracle_any_patch_line = no
+# fail_on_noncompliant = no  # yes = exit 5 when anything is NON-COMPLIANT
+
+# --- report
+formats = csv,html,txt
+output_dir = ~/compliance-reports   # ~ = your home folder on Windows too (C:\Users\<you>\compliance-reports)
+prefix = rds_patch_compliance
+tz = Asia/Kolkata                   # second time zone in the header; on Windows, Windows ids work too ("India Standard Time")
+# log_file = ~/compliance-reports/run.log
+
+# --- account names (shown as "name (number)"; otherwise the IAM account alias, otherwise the number)
+# 111111111111 = prod-payments
+# 222222222222 = nonprod-shared
+
+# --- alerts (optional)
+# alert_emails = dba-team@example.com
+# alert_from = rds-compliance@example.com
+# alert_smtp_server = smtp.example.com   # PowerShell only (Bash rejects it): SMTP relay, Windows has no mail command
+# alert_webhooks = https://hooks.slack.com/services/XXX/YYY/ZZZ
+# alert_webhook_format = slack
+# alert_on = noncompliant
+
+# --- behaviour
+# aws_backend = AwsTools    # PowerShell only (Bash rejects it): AwsTools (default) | Cli (AWS CLI v2)
+aws_timeout = 30
+max_attempts = 5

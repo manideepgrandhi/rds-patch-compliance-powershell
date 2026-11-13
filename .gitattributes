@@ -1,0 +1,11 @@
+docs/ export-ignore
+samples/ export-ignore
+tests/ export-ignore
+tools/ export-ignore
+.github/ export-ignore
+.gitattributes export-ignore
+CHANGELOG.md export-ignore
+# keep the HTML assets and sample outputs byte-exact (they are compared with the Bash tool's)
+*.css -text
+*.js -text
+samples/** -text

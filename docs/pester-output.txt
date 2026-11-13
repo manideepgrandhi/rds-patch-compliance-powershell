@@ -1,0 +1,165 @@
+Pester v5.7.1
+
+Starting discovery in 6 files.
+Discovery found 115 tests in 259ms.
+Running tests.
+
+Running tests from '/workspace/rpc-ps/tests/Endpoint.Tests.ps1'
+Describing Real AWS SDK against a paging fake endpoint
+  [+] follows every Marker page and reads all 230 servers 4.66s (4.63s|25ms)
+  [+] -AllRegions: one request per probe, AccessDenied region = error and still scanned, empty regions skipped 4.96s (4.96s|1ms)
+  [+] three-way: Bash + real CLI == PS + real CLI == PS + AWS.Tools (same report) 31.57s (31.57s|1ms)
+
+Running tests from '/workspace/rpc-ps/tests/Features.Tests.ps1'
+Describing Exit codes
+  [+] unknown option -> exit 1 (same as Bash when available) 745ms (741ms|3ms)
+  [+] bad -MaxBehind -> exit 1 (same as Bash when available) 773ms (772ms|1ms)
+  [+] bad -WarnDays -> exit 1 (same as Bash when available) 791ms (790ms|1ms)
+  [+] -ProbeParallel 0 -> exit 1 (same as Bash when available) 790ms (789ms|1ms)
+  [+] -ProbeParallel 33 -> exit 1 (same as Bash when available) 793ms (792ms|1ms)
+  [+] unknown format -> exit 1 (same as Bash when available) 792ms (792ms|1ms)
+  [+] several formats without -OutputDir -> exit 1 (same as Bash when available) 777ms (777ms|0ms)
+  [+] bad -AlertOn -> exit 1 (same as Bash when available) 789ms (789ms|1ms)
+  [+] bad -AlertWebhookFormat -> exit 1 (same as Bash when available) 770ms (770ms|0ms)
+  [+] bad -AwsTimeout -> exit 1 (same as Bash when available) 763ms (762ms|1ms)
+  [+] bad -MaxAttempts -> exit 1 (same as Bash when available) 769ms (769ms|1ms)
+  [+] bad time zone -> exit 1 (same as Bash when available) 806ms (805ms|1ms)
+  [+] missing config file -> exit 1 (same as Bash when available) 823ms (821ms|1ms)
+  [+] -Merge with nothing -> exit 1 (same as Bash when available) 334ms (333ms|0ms)
+  [+] bad credentials -> exit 2 (same as Bash when available) 1.2s (1.2s|1ms)
+  [+] non-compliant + -FailOnNonCompliant -> exit 5 (same as Bash when available) 4.09s (4.09s|0ms)
+  [+] output dir not writable -> exit 1 (same as Bash when available) 797ms (797ms|1ms)
+  [+] -Help -> exit 0 (same as Bash when available) 711ms (711ms|1ms)
+  [+] -Version -> exit 0 (same as Bash when available) 760ms (760ms|1ms)
+  [+] summary: -FailOnNonCompliant -> exit 5 (same as Bash when available) 3.9s (3.9s|0ms)
+  [+] summary: -SaveData writes the same data file as Bash 3.84s (3.84s|0ms)
+  [+] config file with a credentials key is refused (exit 1) 733ms (733ms|1ms)
+
+Describing AWS back ends: AWS.Tools (real SDK objects) == AWS CLI
+  [+] fleet -ProfileName prod -Region us-east-1,us-west-2 7.15s (7.15s|1ms)
+  [+] global -ProfileName prod -Region us-east-1,us-west-2,eu-west-1 8.05s (8.05s|1ms)
+  [+] oracle -ProfileName prod -Region us-east-1 5.81s (5.81s|1ms)
+  [+] accessdenied -ProfileName prod,nonprod -AllRegions -ProbeParallel 1 9.1s (9.1s|1ms)
+  [+] lookupfail -ProfileName prod -Region us-east-1 7.22s (7.22s|1ms)
+  [+] lcfail -ProfileName prod -Region us-east-1 7.24s (7.24s|1ms)
+  [+] fleet -ProfileName prod,broken -Region us-east-1 7.25s (7.25s|1ms)
+
+Describing Parallel region discovery (ForEach-Object -Parallel)
+  [+] -ProbeParallel 8 gives the same report as 1 and is faster 21.49s (21.49s|1ms)
+
+Describing Dry run, keep-workdir, -ReturnReport
+  [+] -DryRun makes no AWS call and prints the plan (same as Bash apart from the name line) 966ms (965ms|1ms)
+  [+] -KeepWorkdir keeps one raw JSON per AWS call 2.59s (2.59s|0ms)
+2026-11-13 09:44:34 [INFO] Profile prod: account 111111111111 (arn:aws:iam::111111111111:user/dba)
+2026-11-13 09:44:34 [INFO] [prod/us-east-1] 11 cluster(s), 29 instance(s), 4 resource(s) with pending maintenance
+2026-11-13 09:44:34 [WARN] [prod/us-east-1] aurora-postgresql 11.9 is not returned by describe-db-engine-versions (deprecated / not offered here); its servers are UNKNOWN
+2026-11-13 09:44:35 [INFO] [prod/us-east-1] COMPLIANT=11 NON-COMPLIANT=7 UNKNOWN=1
+2026-11-13 09:44:35 [INFO] [prod] 0 Aurora global database(s)
+2026-11-13 09:44:35 [INFO] Result: 19 server(s)/cluster(s): COMPLIANT 11, NON-COMPLIANT 7, UNKNOWN 1 (57.9% compliant); 0 error(s); 30 AWS call(s); exit 0
+  [+] in-process call returns the exit code; -ReturnReport returns the report object 1.8s (1.8s|0ms)
+
+Describing Alerts
+  [+] report: e-mail + slack webhook payloads (same as Bash) 4s (3.99s|2ms)
+  [+] report: e-mail + json webhook payloads (same as Bash) 4.01s (4.01s|0ms)
+  [+] summary: e-mail + slack webhook payloads (same as Bash) 4.17s (4.16s|1ms)
+  [+] summary: e-mail + json webhook payloads (same as Bash) 4.01s (4.01s|1ms)
+  [+] -AlertTest sends a test message and makes no AWS call 921ms (921ms|0ms)
+  [+] -AlertOn noncompliant: no alert when everything is compliant 3.53s (3.53s|1ms)
+
+Describing HTML page works offline
+  [+] pages have no external script / style / image / font references 6ms (5ms|1ms)
+  [+] headless Chrome with networking disabled renders the table and the scripts run 575ms (575ms|0ms)
+
+Running tests from '/workspace/rpc-ps/tests/Lint.Tests.ps1'
+Describing Static analysis
+  [+] PSScriptAnalyzer: no errors or warnings in src/ and the scripts 2.11s (2.11s|1ms)
+  [+] PSScriptAnalyzer: no errors anywhere (tests included) 138ms (136ms|2ms)
+  [+] no function uses two spellings of one variable ($L and $l are the same variable) 460ms (460ms|0ms)
+  [+] every function has a comment line right above it 15ms (14ms|1ms)
+
+Running tests from '/workspace/rpc-ps/tests/Merge.Tests.ps1'
+Describing Merge: PowerShell only
+  [+] PS save -> PS merge: exit 0, all accounts, newest prod collection wins 1.72s (1.72s|2ms)
+  [+] saved file has the Bash schema (schema, schema_version 1, accounts, rows, collected_epoch) 19ms (18ms|0ms)
+  [+] merges the v1.3.0 fixtures (older Bash release) into one -OutputDir FILE.html 1.54s (1.54s|0ms)
+  [+] merge makes zero AWS calls (works with no aws on PATH) 1.51s (1.51s|1ms)
+
+Describing Merge: cross-compatible with the Bash tool
+  [+] saved data files are identical (apart from script_version): old/prod_old.json 17ms (16ms|1ms)
+  [+] saved data files are identical (apart from script_version): rds_patch_111111111111_*.json 14ms (14ms|0ms)
+  [+] saved data files are identical (apart from script_version): rds_patch_222222222222_*.json 12ms (11ms|0ms)
+  [+] saved data files are identical (apart from script_version): rds_patch_333333333333_*.json 13ms (12ms|1ms)
+  [+] Bash save -> PS merge == Bash save -> Bash merge 2.34s (2.34s|0ms)
+  [+] PS save -> Bash merge == Bash save -> Bash merge 1.31s (1.31s|0ms)
+  [+] PS save -> PS merge == Bash save -> Bash merge 2.39s (2.39s|0ms)
+  [+] multi-account merge with -MaxBehind 1 -OracleAnyPatchLine matches 2.36s (2.36s|0ms)
+  [+] v1.3.0 fixtures + a new file into all.html: same page and same log 1.87s (1.87s|0ms)
+  [+] summary script -Merge matches (txt, html, CSVs) 2.16s (2.16s|0ms)
+
+Describing Merge: bad input files exit 3 with the Bash message
+  [+] missing.json -> exit 3 857ms (856ms|1ms)
+  [+] page.html -> exit 3 822ms (821ms|0ms)
+  [+] trunc.json -> exit 3 825ms (825ms|0ms)
+  [+] report.json -> exit 3 864ms (864ms|0ms)
+  [+] array.json -> exit 3 833ms (832ms|0ms)
+  [+] other.json -> exit 3 872ms (872ms|1ms)
+  [+] noversion.json -> exit 3 923ms (922ms|1ms)
+  [+] incomplete.json -> exit 3 999ms (998ms|1ms)
+  [+] old.json -> exit 3 914ms (913ms|1ms)
+  [+] newer.json -> exit 3 903ms (902ms|1ms)
+  [+] emptydir -> exit 3 918ms (917ms|1ms)
+  [+] nomatch*.json -> exit 3 791ms (791ms|0ms)
+
+Running tests from '/workspace/rpc-ps/tests/Parity.Tests.ps1'
+Describing Parity: scan report (Bash vs PowerShell)
+  [+] fleet, 2 regions: same files, same exit code, same log 4.58s (4.58s|1ms)
+  [+] Aurora global databases: same files, same exit code, same log 5.26s (5.26s|1ms)
+  [+] Oracle patch lines: same files, same exit code, same log 3.31s (3.31s|1ms)
+  [+] Oracle any patch line: same files, same exit code, same log 3.55s (3.55s|1ms)
+  [+] discovery, 2 accounts: same files, same exit code, same log 6.01s (6.01s|0ms)
+  [+] no discovery: same files, same exit code, same log 5.25s (5.25s|0ms)
+  [+] access denied: same files, same exit code, same log 6.53s (6.53s|1ms)
+  [+] no lifecycle API: same files, same exit code, same log 4.29s (4.29s|0ms)
+  [+] lifecycle lookup fails: same files, same exit code, same log 4.68s (4.68s|1ms)
+  [+] version lookup fails: same files, same exit code, same log 4.6s (4.6s|0ms)
+  [+] no databases: same files, same exit code, same log 2.35s (2.35s|0ms)
+  [+] one broken profile: same files, same exit code, same log 4.47s (4.47s|1ms)
+  [+] filters + non-compliant only: same files, same exit code, same log 3.35s (3.35s|1ms)
+  [+] max-behind 0, warn-days 900, tz: same files, same exit code, same log 4.46s (4.46s|1ms)
+  [+] large (300 servers): same files, same exit code, same log 7.03s (7.02s|2ms)
+  [+] 3 accounts with aliases: same files, same exit code, same log 6.27s (6.27s|1ms)
+  [+] prefix + single html file: same files, same exit code, same log 4.19s (4.19s|0ms)
+  [+] stdout CSV (no -OutputDir) is byte-identical 4.01s (4.01s|0ms)
+  [+] stdout text report is identical (apart from the tool name) 3.76s (3.76s|0ms)
+  [+] bad credentials: exit 2 with the same messages 1.01s (1s|0ms)
+  [+] config file (account names, log_file, verbose): same outputs and same log file 4.38s (4.38s|0ms)
+
+Describing Parity: summary script (Bash vs PowerShell)
+  [+] summary fleet: txt / html / 4 CSVs and stdout match 4.72s (4.72s|1ms)
+  [+] summary discovery: txt / html / 4 CSVs and stdout match 5.82s (5.82s|0ms)
+  [+] summary global: txt / html / 4 CSVs and stdout match 5.25s (5.25s|0ms)
+  [+] summary oracle + broken, max-behind 1: txt / html / 4 CSVs and stdout match 3.37s (3.37s|0ms)
+  [+] summary empty: txt / html / 4 CSVs and stdout match 2.03s (2.03s|0ms)
+
+Running tests from '/workspace/rpc-ps/tests/Unit.Tests.ps1'
+Describing jq-compatible JSON
+  [+] prints numbers like jq: 5 -> 5 14ms (13ms|2ms)
+  [+] prints numbers like jq: 2.5 -> 2.5 3ms (2ms|1ms)
+  [+] prints numbers like jq: 57.8947368421053 -> 57.89473684210527 2ms (1ms|0ms)
+  [+] prints numbers like jq: 100 -> 100 1ms (1ms|0ms)
+  [+] prints numbers like jq: 1E+20 -> 1E+20 1ms (1ms|0ms)
+  [+] prints numbers like jq: -0.25 -> -0.25 1ms (1ms|0ms)
+  [+] round-trips a document byte for byte like jq . (pretty) and jq -c 15ms (15ms|0ms)
+  [+] sorts in jq order (null < false < true < numbers < strings < arrays < objects), stable 6ms (6ms|0ms)
+  [+] @csv and @html escaping match jq 12ms (12ms|0ms)
+
+Describing Version rules
+  [+] orders engine versions numerically, not as text 4ms (3ms|0ms)
+  [+] derives the major version: postgres 16.8 -> 16 2ms (1ms|0ms)
+  [+] derives the major version: mysql 8.0.36 -> 8.0 2ms (1ms|0ms)
+  [+] derives the major version: aurora-mysql 8.0.mysql_aurora.3.05.2 -> 8.0 1ms (1ms|0ms)
+  [+] derives the major version: sqlserver-se 15.00.4410.1.v1 -> 15.00 1ms (1ms|0ms)
+  [+] derives the major version: oracle-ee 19.0.0.0.ru-2025-01.rur-2025-01.r1 -> 19 1ms (1ms|0ms)
+Tests completed in 331.05s
+Tests Passed: 115, Failed: 0, Skipped: 0, Inconclusive: 0, NotRun: 0
+TOTALS passed=115 failed=0 skipped=0 notrun=0 total=115 duration=00:05:31.0528782

@@ -1,0 +1,45 @@
+# CI: the Pester suite on Linux, including the side-by-side parity tests against the Bash tool
+# (checked out from manideepgrandhi/rds-patch-compliance) and the real AWS CLI / AWS.Tools
+# against the Bash repo's local fake endpoint. No AWS account or credentials are used.
+name: tests
+on:
+  push:
+    branches: [main, 'feature/**']
+  pull_request:
+permissions:
+  contents: read
+jobs:
+  pester:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Bash reference tool (read-only checkout)
+        uses: actions/checkout@v4
+        with:
+          repository: manideepgrandhi/rds-patch-compliance
+          path: bash-ref
+      - name: PowerShell modules
+        shell: pwsh
+        run: |
+          Set-PSRepository PSGallery -InstallationPolicy Trusted
+          Install-Module Pester -RequiredVersion 5.7.1 -Scope CurrentUser -Force -SkipPublisherCheck
+          Install-Module PSScriptAnalyzer -Scope CurrentUser -Force
+          Install-Module AWS.Tools.Common, AWS.Tools.SecurityToken, AWS.Tools.EC2, AWS.Tools.RDS, AWS.Tools.IdentityManagement, AWS.Tools.DocDB, AWS.Tools.Neptune -Scope CurrentUser -Force
+      - name: Pester
+        shell: pwsh
+        run: |
+          $env:RDS_PCR_BASH_DIR = Join-Path $env:GITHUB_WORKSPACE 'bash-ref'
+          $aws = Get-Command aws -CommandType Application -ErrorAction SilentlyContinue
+          if ($aws) { $env:RDS_PCR_REAL_AWS = $aws.Source }
+          Import-Module Pester -RequiredVersion 5.7.1
+          $c = New-PesterConfiguration
+          $c.Run.Path = './tests'
+          $c.Run.Exit = $true
+          $c.Output.Verbosity = 'Detailed'
+          $c.TestResult.Enabled = $true
+          Invoke-Pester -Configuration $c
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: test-results
+          path: testResults.xml

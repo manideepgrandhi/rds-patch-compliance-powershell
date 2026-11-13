@@ -2,8 +2,10 @@
 *.csv
 *.html
 !tests/fixtures/**
+!samples/**
 rds_patch_*.json
 !tests/fixtures/**/*.json
+!samples/**/*.json
 *.log
 # Test / editor output
 TestResults/
@@ -13,3 +15,5 @@ testResults.xml
 # Local config (may hold account names)
 *.conf
 !*.conf.example
+# Partial writes from atomic save
+*.tmp.*
