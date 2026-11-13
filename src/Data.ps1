@@ -81,7 +81,9 @@ function Read-PcrDataFile {
     try { $d = ConvertFrom-JqJson $text } catch { Stop-Pcr 3 "$File is not valid JSON (truncated or not a -SaveData file)" }
     if (-not (Test-JqObject $d)) { Stop-Pcr 3 "$File is not a patch compliance data file (schema `"$script:DataSchema`" expected; write one with -SaveData)" }
     if ((Get-JqField $d 'schema') -ne $script:DataSchema) {
-        if ((Test-JqTruthy (Get-JqField $d 'meta')) -and (Test-JqTruthy (Get-JqField $d 'summary')) -and (Test-JqTruthy (Get-JqField $d 'rows'))) { Stop-Pcr 3 "$File is a -Format json report, not a -SaveData file; re-run with -SaveData" }
+        # jq truthiness: only null / false are false ({} and [] are true), so read the values without unrolling
+        $truthy = { param($k) $d.Contains($k) -and (Test-JqTruthy $d[$k]) -or ($d.Contains($k) -and $d[$k] -is [System.Collections.IEnumerable] -and $d[$k] -isnot [string]) }
+        if ((& $truthy 'meta') -and (& $truthy 'summary') -and (& $truthy 'rows')) { Stop-Pcr 3 "$File is a -Format json report, not a -SaveData file; re-run with -SaveData" }
         Stop-Pcr 3 "$File is not a patch compliance data file (schema `"$script:DataSchema`" expected; write one with -SaveData)"
     }
     $sv = Get-JqField $d 'schema_version'
