@@ -2,8 +2,10 @@
 *.csv
 *.html
 !tests/fixtures/**
+!samples/**
 rds_patch_*.json
 !tests/fixtures/**/*.json
+!samples/**/*.json
 *.log
 # Test / editor output
 TestResults/
