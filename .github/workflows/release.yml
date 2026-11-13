@@ -43,10 +43,15 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
           TAG: ${{ github.event.inputs.tag || github.ref_name }}
+          REPO: ${{ github.repository }}
         run: |
+          set -euo pipefail
           N=rds-patch-compliance-powershell
+          NOTES=$(mktemp)
+          python3 tools/Write-ReleaseNotes.py "$TAG" --repo "$REPO" --name "$N" -o "$NOTES"
           if gh release view "$TAG" >/dev/null 2>&1; then
             gh release upload "$TAG" "dist/$N.zip" "dist/$N.zip.sha256" --clobber
+            gh release edit "$TAG" --notes-file "$NOTES"
           else
-            gh release create "$TAG" "dist/$N.zip" "dist/$N.zip.sha256" --title "$TAG" --notes "rds-patch-compliance-powershell $TAG (PowerShell 7 port of rds-patch-compliance). Unzip, then: pwsh ./$N/Invoke-RdsPatchCompliance.ps1 -Help"
+            gh release create "$TAG" "dist/$N.zip" "dist/$N.zip.sha256" --title "$TAG" --notes-file "$NOTES"
           fi

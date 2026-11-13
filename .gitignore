@@ -17,3 +17,6 @@ testResults.xml
 !*.conf.example
 # Partial writes from atomic save
 *.tmp.*
+
+# Built What's new site (GitHub Pages artifact)
+whats-new/dist/
