@@ -1,0 +1,15 @@
+# Generated reports and saved data
+*.csv
+*.html
+!tests/fixtures/**
+rds_patch_*.json
+!tests/fixtures/**/*.json
+*.log
+# Test / editor output
+TestResults/
+testResults.xml
+.vscode/
+.idea/
+# Local config (may hold account names)
+*.conf
+!*.conf.example
