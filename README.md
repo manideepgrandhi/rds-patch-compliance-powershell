@@ -25,7 +25,7 @@ HTML page.
 
 Release history: [What's new](https://manideepgrandhi.github.io/rds-patch-compliance-powershell/) · also in [CHANGELOG.md](CHANGELOG.md). More examples: [EXAMPLES.md](EXAMPLES.md).
 How it differs from the Bash code: [COMPARISON.md](COMPARISON.md). Option-by-option mapping:
-[FEATURE-PARITY.md](FEATURE-PARITY.md). Latest test run: [docs/TEST-RESULTS.md](docs/TEST-RESULTS.md).
+[FEATURE-PARITY.md](FEATURE-PARITY.md). Latest test run: [docs/TEST-RESULTS.md](docs/TEST-RESULTS.md). Scheduled multi-account runs from a Windows EC2 jump box: [docs/JUMP-BOX-SETUP.md](docs/JUMP-BOX-SETUP.md).
 
 ## Contents
 
@@ -477,7 +477,7 @@ rds_patch_compliance_report.conf.example   sample -ConfigFile (same format as th
 src/                                   the module: RdsPatchCompliance.psm1 + one file per area
 assets/                                CSS / JS inlined into the HTML page (same as the Bash tool)
 samples/                               outputs generated from the test mock; samples/data = two -SaveData files
-docs/                                  screenshots, TEST-RESULTS.md
+docs/                                  screenshots, TEST-RESULTS.md, JUMP-BOX-SETUP.md
 tools/Build-Samples.ps1                regenerates samples/ from the mock
 tests/                                 Pester 5 tests, the shared mock AWS CLI, an AWS.Tools test double
 COMPARISON.md  FEATURE-PARITY.md  EXAMPLES.md  CHANGELOG.md
