@@ -51,7 +51,7 @@ function Invoke-PcrTool {
         'ps-report' { "pwsh -NoProfile -NonInteractive -File $(ConvertTo-ShArg (Join-Path $script:Root 'Invoke-RdsPatchCompliance.ps1')) -AwsBackend Cli $argText" }
         'ps-summary' { "pwsh -NoProfile -NonInteractive -File $(ConvertTo-ShArg (Join-Path $script:Root 'Invoke-RdsPatchComplianceSummary.ps1')) -AwsBackend Cli $argText" }
         'ps-report-tools' {
-            $inner = ". $(ConvertTo-ShArg (Join-Path $script:MockDir 'AwsToolsShim.ps1')); & $(ConvertTo-ShArg (Join-Path $script:Root 'Invoke-RdsPatchCompliance.ps1')) -AwsBackend AwsTools $(($Arguments | ForEach-Object { "'" + $_.Replace("'", "''") + "'" }) -join ' '); exit `$LASTEXITCODE"
+            $inner = ". $(ConvertTo-ShArg (Join-Path $script:MockDir 'AwsToolsShim.ps1')); & $(ConvertTo-ShArg (Join-Path $script:Root 'Invoke-RdsPatchCompliance.ps1')) -AwsBackend AwsTools $(($Arguments | ForEach-Object { if ($_ -match '^-[A-Za-z]+$') { $_ } else { "'" + $_.Replace("'", "''") + "'" } }) -join ' '); exit `$LASTEXITCODE"
             "pwsh -NoProfile -NonInteractive -Command $(ConvertTo-ShArg $inner)"
         }
         default { throw "unknown tool $Tool" }

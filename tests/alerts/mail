@@ -1,0 +1,3 @@
+#!/usr/bin/env bash
+# tests/alerts/mail - fake mail(1): saves its arguments and the message body to $ALERT_CAPTURE
+{ printf 'ARGS:'; printf ' [%s]' "$@"; echo; cat; } > "$ALERT_CAPTURE"
