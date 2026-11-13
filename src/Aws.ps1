@@ -62,9 +62,12 @@ function ConvertFrom-PcrSdkObject {
 }
 
 # ---------------------------------------------------------------------------------------------- client settings
-# Get-PcrClientConfig: per-service SDK config with the -AwsTimeout / -MaxAttempts settings (standard retry mode)
+# Get-PcrClientConfig: per-service SDK config with the -AwsTimeout / -MaxAttempts settings (standard retry mode).
+# Regional services (RDS, DocDB, Neptune, EC2) also sign for $Region explicitly: with an endpoint override
+# (AWS_ENDPOINT_URL, a VPC endpoint, the test endpoint) the SDK would otherwise guess the signing region from
+# the URL. STS / IAM keep the SDK default (IAM is global and signs for us-east-1).
 function Get-PcrClientConfig {
-    param([string]$Module)
+    param([string]$Module, [string]$Region)
     $type = switch ($Module) {
         'AWS.Tools.RDS' { 'Amazon.RDS.AmazonRDSConfig' } 'AWS.Tools.EC2' { 'Amazon.EC2.AmazonEC2Config' }
         'AWS.Tools.SecurityToken' { 'Amazon.SecurityToken.AmazonSecurityTokenServiceConfig' } 'AWS.Tools.IdentityManagement' { 'Amazon.IdentityManagement.AmazonIdentityManagementServiceConfig' }
@@ -76,6 +79,7 @@ function Get-PcrClientConfig {
     $c.Timeout = [TimeSpan]::FromSeconds($script:O.AwsTimeout)
     $c.MaxErrorRetry = [Math]::Max(0, $script:O.MaxAttempts - 1)
     try { $c.RetryMode = [Amazon.Runtime.RequestRetryMode]::Standard } catch { Write-Debug "RetryMode not settable: $_" }
+    if ($Region -and $Module -in 'AWS.Tools.RDS', 'AWS.Tools.EC2', 'AWS.Tools.DocDB', 'AWS.Tools.Neptune') { $c.AuthenticationRegion = $Region }
     return $c
 }
 # Format-PcrAwsError: error text in the AWS CLI's words ("An error occurred (Code) when calling the Op operation: msg")
@@ -83,7 +87,17 @@ function Format-PcrAwsError {
     param($ErrorRecord, [string]$Op)
     $ex = $ErrorRecord.Exception
     while ($ex -and $ex.InnerException -and -not ($ex.PSObject.Properties['ErrorCode'] -and $ex.ErrorCode)) { $ex = $ex.InnerException }
-    $msg = if ($ex.PSObject.Properties['ErrorCode'] -and $ex.ErrorCode) { "An error occurred ($($ex.ErrorCode)) when calling the $Op operation: $($ex.Message)" } else { [string]$ErrorRecord.Exception.Message }
+    $msg = if ($ex.PSObject.Properties['ErrorCode'] -and $ex.ErrorCode) { "An error occurred ($($ex.ErrorCode)) when calling the $Op operation: $($ex.Message)" }
+    else {
+        # a service error with no error code (e.g. HTTP 400 with an empty body): the CLI prints the HTTP status
+        $svc = $ErrorRecord.Exception
+        while ($svc -and -not ($svc -is [Amazon.Runtime.AmazonServiceException])) { $svc = $svc.InnerException }
+        if ($svc -and [int]$svc.StatusCode -gt 0) {
+            $reason = [System.Net.Http.HttpResponseMessage]::new($svc.StatusCode).ReasonPhrase
+            "An error occurred ($([int]$svc.StatusCode)) when calling the $Op operation: $reason"
+        }
+        else { [string]$ErrorRecord.Exception.Message }
+    }
     return (Compress-PcrError $msg)
 }
 # Compress-PcrError (Bash: tr -s '\n' ' ' | sed ...): one line, no "aws: [ERROR]: ", at most 400 characters
@@ -130,7 +144,7 @@ function Invoke-PcrAwsTools {
     $a = @{ ErrorAction = 'Stop' }
     if ($Region) { $a.Region = $Region }
     if ($ProfileName) { $a.ProfileName = $ProfileName }
-    $cfg = Get-PcrClientConfig $op.Module
+    $cfg = Get-PcrClientConfig $op.Module $Region
     if ($cfg) { $a.ClientConfig = $cfg }
     if ($Params.ContainsKey('engine')) { $a.Engine = $Params.engine }
     if ($Params.ContainsKey('engine-version')) { $a.EngineVersion = $Params['engine-version'] }
@@ -206,7 +220,7 @@ $script:ProbeBlock = {
             }
             $p = @{ Region = $Region; MaxRecord = 20; NoAutoIteration = $true; ErrorAction = 'Stop' }
             if ($ProfileName) { $p.ProfileName = $ProfileName }
-            $cfg = [Amazon.RDS.AmazonRDSConfig]::new(); $cfg.Timeout = [TimeSpan]::FromSeconds($Timeout); $cfg.MaxErrorRetry = [Math]::Max(0, $MaxAttempts - 1)
+            $cfg = [Amazon.RDS.AmazonRDSConfig]::new(); $cfg.Timeout = [TimeSpan]::FromSeconds($Timeout); $cfg.MaxErrorRetry = [Math]::Max(0, $MaxAttempts - 1); $cfg.AuthenticationRegion = $Region
             $p.ClientConfig = $cfg
             $items = if ($Kind -eq 'i') { @(Get-RDSDBInstance @p) } else { @(Get-RDSDBCluster @p) }
             return @{ n = [long]$items.Count; e = '' }
